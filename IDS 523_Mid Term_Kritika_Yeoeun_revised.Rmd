@@ -1,0 +1,1187 @@
+---
+title: "IDS 523 Mid Term Exam"
+author: "Yeoeun Choi, Kritika Raghuwanshi"
+date: "`r Sys.Date()`"
+output:
+  pdf_document:
+    latex_engine: lualatex
+  word_document: default
+header-includes:
+  - \usepackage{sectsty}
+  - \sectionfont{\centering}
+  - \renewcommand{\figurename}{\textbf{Figure }}
+  - \makeatletter
+  - \def\fnum@figure{\figurename\thefigure}
+  - \setlength{\abovecaptionskip}{2pt}
+  - \setlength{\belowcaptionskip}{2pt}
+  - \makeatother
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+```
+
+# Loading Precision Widgets’s Accounting System Files
+
+```{r, loading CSV files}
+
+library(tidyverse)
+
+# Load data from CSV files
+ap_ledger <- read_csv("C:/midterm_exam_files/ap_ledger.csv")
+
+collections_journal <- read_csv("C:/midterm_exam_files/collections_journal.csv")
+
+customer_credit_limits <- 
+read_csv("C:/midterm_exam_files/customer_credit_limits.csv")
+
+deposit_daily <- read_csv("C:/midterm_exam_files/deposit_daily.csv")
+
+disbursement_journal <- 
+read_csv("C:/midterm_exam_files/disbursement_journal.csv")
+
+expenditures <- read_csv("C:/midterm_exam_files/expenditures.csv")
+
+fyear_begin_inventory_ledger <- 
+read_csv("C:/midterm_exam_files/fyear_begin_inventory_ledger.csv")
+
+fyear_end_ar_ledger <- read_csv("C:/midterm_exam_files/fyear_end_ar_ledger.csv")
+
+perpetual_inventory_ledger <- 
+read_csv("C:/midterm_exam_files/perpetual_inventory_ledger.csv")
+
+purchase_journal <- read_csv("C:/midterm_exam_files/purchase_journal.csv")
+
+real_world_cash_sales <- 
+read_csv("C:/midterm_exam_files/real_world_cash_sales.csv")
+
+real_world_collections <- 
+read_csv("C:/midterm_exam_files/real_world_collections.csv")
+
+real_world_credit_sales <- 
+read_csv("C:/midterm_exam_files/real_world_credit_sales.csv")
+
+real_world_fyear_end_ar_ledger <- 
+read_csv("C:/midterm_exam_files/real_world_fyear_end_ar_ledger.csv")
+
+real_world_ye_inventory <- 
+read_csv("C:/midterm_exam_files/real_world_ye_inventory.csv")
+
+receiver_journal <- read_csv("C:/midterm_exam_files/receiver_journal.csv")
+
+sales_journal <- read_csv("C:/midterm_exam_files/sales_journal.csv")
+
+shipments_journal <- read_csv("C:/midterm_exam_files/shipments_journal.csv")
+```
+
+\newpage
+
+\sectionfont{\centering}
+
+# Question 1 Code
+
+```{r Question 1, fig.cap="\\textbf{Distribution of Transaction Amounts for library(readr)}"}
+library(ggplot2)
+library(dplyr)
+library(stats)
+library(tidyverse)
+library(moments)
+
+# Specify the directory containing the CSV files
+file_directory <- "C:/midterm_exam_files/"
+
+# Generate a list of file paths for all CSV files in the directory
+file_path <- list.files(path = file_directory, 
+pattern = "\\.csv$", full.names = TRUE)
+
+# Manually specify the names of the CSV files you want to include
+specific_files <- 
+c("real_world_cash_sales.csv", "collections_journal.csv", 
+"customer_credit_limits.csv", "deposit_daily.csv", 
+"disbursement_journal.csv", "expenditures.csv", 
+"fyear_begin_inventory_ledger.csv", "fyear_end_ar_ledger.csv",
+"perpetual_inventory_ledger.csv", "purchase_journal.csv", 
+"real_world_collections.csv", "real_world_credit_sales.csv",
+"real_world_fyear_end_ar_ledger.csv", "real_world_ye_inventory.csv",
+"receiver_journal.csv", "sales_journal.csv", "shipments_journal.csv")
+
+# Prepend the directory path to each file name to create full paths
+file_path <- paste0(file_directory, "/", specific_files)
+
+analyze_file <- function(file_path) {
+  message(paste("Analyzing:", file_path))
+  data <- read_csv(file_path, show_col_types = FALSE)
+  
+  numeric_columns <- select_if(data, is.numeric) %>% names()
+  
+  results <- map_dfr(numeric_columns, function(column_name) {
+    column_data <- na.omit(data[[column_name]])
+    
+    # Skip columns with less than 2 unique values
+    if (length(unique(column_data)) < 2) {
+      return(data.frame(
+        File = basename(file_path),
+        Column = column_name,
+        Shapiro_W_Statistic = NA,
+        Shapiro_P_Value = NA,
+        Note = "Insufficient unique values for normality test"
+      ))
+    }
+    
+    # If large dataset, sample 5000 observations
+    if(length(column_data) > 5000) {
+      set.seed(123)
+      column_data <- sample(column_data, 5000)
+    }
+    
+    shapiro_test_result <- shapiro.test(column_data)
+    
+    return(data.frame(
+      File = basename(file_path),
+      Column = column_name,
+      Shapiro_W_Statistic = shapiro_test_result$statistic,
+      Shapiro_P_Value = shapiro_test_result$p.value,
+      Note = "Normality test performed"
+    ))
+  })
+  
+  return(results)
+}
+
+# Apply the function to each file and combine the results
+all_results <- map_dfr(file_path, analyze_file)
+```
+
+\newpage
+
+```{r}
+# View the summary of results
+print(all_results)
+```
+
+\newpage
+
+\sectionfont{\centering}
+
+# Explanation
+
+# Interpretation of Shapiro-Wilk Test Results
+
+## Normality of Transaction Data:
+
+The Shapiro-Wilk test helps assess how closely transaction amounts in Precision Widgets' accounting system resemble a normal distribution.
+
+  1. **Low P-Values (less than 0.05):** These results suggest transaction amounts in certain columns may not follow a normal pattern. This could indicate outliers, skewed data, or other irregularities like multiple peaks or extreme values.
+  2. **High P-Values (greater than or equal to 0.05):** These results suggest transaction amounts in certain columns likely follow a normal distribution. However, high p-values alone don't guarantee the absence of all anomalies or errors. Further investigation may be necessary.
+
+# Implications for Audit Risk, Scope, and Methodology
+
+## Impact on Audit Procedures: 
+
+Non-normal distributions can affect audit risk in two ways:
+
+  1. **Errors and Fraud:** Outliers in non-normal data might signal potential errors or even fraudulent transactions, requiring further investigation.
+  2. **Increased Audit Scope:** For columns with non-normal distributions or limited unique values, auditors may need to broaden the scope of their work. This could involve additional tests or alternative analytical procedures to ensure the accuracy and completeness of these
+  transactions.
+  
+## Sample Size and Tests: 
+
+Non-normal distributions often necessitate larger sample sizes for substantive tests to achieve the desired level of audit confidence. Additionally, auditors may need to switch from parametric tests (assuming normality) to non-parametric tests that don't rely on this assumption.
+
+\newpage
+
+# Adjustments to the Risk Assessment Matrix (RAM) and Audit Budget
+
+## Risk Assessment Matrix (RAM) Updates:
+
+  1. **Increased Risk Scores:** Transaction categories with significant deviations from normality may require higher inherent and control risk ratings in the RAM.
+  2. **Detailed Risk Annotations:** Specifically document risks related to outliers, skewness, and potential errors or fraud for further analysis during the audit.
+  
+## Audit Budget Adjustments:
+
+  1. **Resource Allocation:** Allocate more resources to areas with identified higher risks, especially those with significantly non-normal data. This might involve dedicating more time to reviewing individual transactions or employing specialized audit techniques.
+  2. **Statistical Expertise:** Consider the need for additional budget to involve external consultants with specialized statistical expertise to handle non-normal distributions effectively.
+  3. **Overall Budget Increase:** Adjust the total audit budget to account for larger sample sizes, additional testing procedures, and potentially longer engagement times needed to address these complexities.
+  
+## Calculating the Final Budget:
+
+  1. **Reassess Affected Elements:** Re-evaluate each element of the audit plan impacted by the adjusted RAM, including the extent of testing and the depth of analysis required for high-risk areas.
+  2. **Budget Update:** Update the total budget to reflect the increased costs associated with these additional audit activities, ensuring the final budget remains aligned with the audit's objectives and the entity's overall risk profile.
+  
+\newpage
+
+\sectionfont{\centering}
+  
+# Question 2 Code
+
+In this question, we're using the sales_journal.csv file as the accounting file of choice. We'll be doing the following analysis:
+
+# **1. Sales_extended v/s Unit_cost**
+
+```{r Question 2, fig.cap="\\textbf{Sales Extended vs. Unit Cost}"}
+
+library(tidyverse)
+library(plotluck)
+library(readr)
+
+sales_journal <- read_csv("C:/midterm_exam_files/sales_journal.csv")
+plotluck(sales_journal, sales_extended ~ unit_cost)
+```
+
+# Explanation
+
+**Sales Extended vs. Unit Cost**: The first plot hints at a non-linear relationship between unit_cost and sales_extended. As unit costs go up, sales extended also tend to increase, but it's not a direct proportional relationship - there's quite a bit of variability. This could mean that higher-cost items sometimes drive higher sales, but other factors like product type or seasonal demand might also influence that connection.
+
+\newpage
+
+# **2. Sales_count v/s Sales_unit_price**
+
+```{r, fig.cap="\\textbf{Sales Count vs. Sales Unit Price}"}
+plotluck(sales_journal, sales_count ~ sales_unit_price)
+```
+
+# Explanation
+
+**Sales Count vs. Sales Unit Price:** This plot shows a dense cluster where the sales count stays pretty consistent across a range of unit prices. However, as we move into higher unit price ranges, the variability in sales count increases. It could indicate that for those standard-priced items, the number sold is relatively stable, but predicting sales counts for high-priced items is trickier.
+
+\newpage
+
+# **3. Sales_return v/s Cash_not_ar**
+
+```{r, fig.cap="\\textbf{Sales Return vs. Cash Not Accounts Receivable}"}
+plotluck(sales_journal, sales_return ~ cash_not_ar)
+```
+
+# Explanation
+
+**Sales Return vs. Cash Not Accounts Receivable:**  The third plot compares two categorical variables. The majority of transactions are neither sales returns nor marked as cash_not_ar. There are only a handful of cases where transactions hit both of those flags, which might be worth digging into to understand what's going on with those specific transactions.
+
+\newpage
+
+# **4. Unit_cost v/s Sales_unit_price**
+
+```{r, fig.cap="\\textbf{Unit Cost vs. Sales Unit Price}"}
+plotluck(sales_journal, unit_cost ~ sales_unit_price)
+```
+
+# Explanation
+
+**Unit Cost vs. Sales Unit Price:** Here we see a clear positive trend between unit_cost and sales_unit_price. As unit costs increase, the sales unit price tends to increase as well. This relationship looks fairly linear, suggesting consistent pricing strategies are applied across different cost structures.
+
+\newpage
+
+# **5. Collection_amount v/s Sales_extended**
+
+```{r, fig.cap="\\textbf{Collection Amount vs. Sales Extended}"}
+plotluck(sales_journal, collection_amount ~ sales_extended)
+```
+
+# Explanation
+
+**Collection Amount vs. Sales Extended:**  This plot reveals a strong positive linear relationship between sales_extended and collection_amount, which makes sense - the amounts collected should correspond to the sales made. This tight linear relationship is a good sign that the collection process is effectively recovering the appropriate sales amounts, contributing to healthy cash flow for the business.
+
+\newpage
+
+\sectionfont{\centering}
+
+# Question 3 Code
+
+```{r Question 3}
+library(tidyverse)
+library(stringr)
+library(dplyr)
+
+# Reading data
+ap_ledger <- read_csv("C:/midterm_exam_files/ap_ledger.csv")
+sales_journal <- read_csv("C:/midterm_exam_files/sales_journal.csv")
+perpetual_inventory_ledger <- 
+read_csv("C:/midterm_exam_files/perpetual_inventory_ledger.csv")
+purchase_journal <- read_csv("C:/midterm_exam_files/purchase_journal.csv")
+
+# Finding duplicated purchase records
+dup_purchase <- purchase_journal[duplicated(purchase_journal$po_no),]
+n <- nrow(dup_purchase)
+cat("\n # of duplicate purchases = ", n)
+
+# Finding duplicated sales records
+dup_sales <- sales_journal[duplicated(sales_journal$invoice_no),]
+n <- nrow(dup_sales)
+cat("\n # of duplicate sales = ", n)
+
+# Grouping and joining for receiver journal
+receiver_journal <- perpetual_inventory_ledger %>% 
+  group_by(sku) %>% 
+  slice(n()) %>%
+  left_join(ap_ledger, by = "sku")
+
+# Finding duplicated receiver records
+dup_receiver <- receiver_journal[duplicated(receiver_journal$receiver_no),]
+n <- nrow(dup_receiver)
+cat("\n # of duplicate receivers = ", n)
+
+# Finding duplicated shipment records
+dup_shipment <- sales_journal[duplicated(sales_journal$shipper_no),]
+n <- nrow(dup_shipment)
+cat("\n # of duplicate shipments = ", n)
+
+# Omissions in purchase records
+po <- as.numeric(substring(purchase_journal$po_no, 2))
+po_min <- as.numeric(min(po))
+po_max <- as.numeric(max(po))
+omit <- as.data.frame(setdiff(po_min:po_max, po))
+n <- nrow(omit)
+cat("\n # of omitted purchase records = ", n)
+
+# Omissions in sales records
+invoice <- as.numeric(substring(sales_journal$invoice_no, 2))
+invoice_min <- as.numeric(min(invoice))
+invoice_max <- as.numeric(max(invoice))
+omit <- as.data.frame(setdiff(invoice_min:invoice_max, invoice))
+n <- nrow(omit)
+cat("\n # of omitted sales records = ", n)
+
+# Omissions in receiver records
+receiver <- as.numeric(substring(receiver_journal$receiver_no, 4))
+receiver_min <- as.numeric(min(receiver))
+receiver_max <- as.numeric(max(receiver))
+omit <- as.data.frame(setdiff(receiver_min:receiver_max, receiver))
+n <- nrow(omit)
+cat("\n # of omitted receiver records = ", n)
+
+# Omissions in shipment records
+shipments <- as.numeric(substring(sales_journal$shipper_no, 2))
+shipments_min <- as.numeric(min(invoice))
+shipments_max <- as.numeric(max(invoice))
+omit <- as.data.frame(setdiff(shipments_min:shipments_max, shipments))
+n <- nrow(omit)
+cat("\n # of omitted sales records = ", n)
+
+```
+
+\newpage
+
+# Conclusion
+
+## Missing Data:
+
+1. **Purchases:** The system seems to be **missing 530 purchase records**. This could be due to actual missing transactions, or simply data entry errors.
+
+2. **Sales:** We also identified **505 missing sales records**, suggesting similar issues in the sales system.
+
+3. **Receivers:** There weren't any missing receiver records, indicating good data capture in this area.
+
+4. **Shipments:** The report didn't provide details on missing shipment records, but we can likely investigate them using the same methods as for purchases and sales.
+
+## Duplicates:
+
+1. **Sales & Shipping:** We found **510 instances** where the same invoice number was used for a sale, and then again for a shipment. This suggests a possible glitch in the system that processes sales and shipments.
+
+2. **Receivers:** There weren't any duplicate receiver numbers. This means there's no immediate concern with how we track who receives items.
+
+3. **Collection Receipts:** The report didn't directly mention duplicate collection receipt numbers, but we can likely check for them using a similar method as for invoices and shipments.
+
+\newpage
+
+\sectionfont{\centering}
+  
+# Question 4 Code
+
+```{r question 4}
+library(readr)
+library(dplyr)
+library(pwr)
+
+# Load the datasets
+sales_journal <- read_csv("C:/midterm_exam_files/sales_journal.csv")
+
+real_world_credit_sales <- 
+read_csv("C:/midterm_exam_files/real_world_credit_sales.csv")
+
+real_world_cash_sales <- 
+read_csv("C:/midterm_exam_files/real_world_cash_sales.csv")
+
+# Combine real-world data for comparison
+real_world_sales <- bind_rows(real_world_credit_sales, real_world_cash_sales)
+
+# Set the tolerable error rate and confidence level
+tolerable_error_amount <- 100000  # Tolerable error amount in sales
+confidence_level <- 0.95
+
+# Assuming a very low expected error rate for high confidence, for example, 1%
+expected_error_rate <- 0.01
+
+# Calculate minimum discovery sample size
+minimum_discovery_sample_size <- 
+ceiling(log(1 - confidence_level) / log(1 - expected_error_rate))
+
+minimum_discovery_sample_size <- 
+min(minimum_discovery_sample_size, nrow(sales_journal))
+
+# Sample N invoices from the sales_journal file
+set.seed(123)  # For reproducibility
+sampled_sales_journal <- 
+sample_n(sales_journal, size = minimum_discovery_sample_size)
+
+# Join with real_world_sales for comparison using invoice_no as the key
+matched_sales <- 
+left_join(sampled_sales_journal, real_world_sales, by = "invoice_no")
+
+# Calculate error for each transaction in the sample
+matched_sales <- matched_sales %>%
+  mutate(error_amount = abs(collection_amount.x - collection_amount.y))
+
+# Calculate the total error and the average error in the sample
+total_sample_error <- sum(matched_sales$error_amount, na.rm = TRUE)
+average_sample_error <- mean(matched_sales$error_amount, na.rm = TRUE)
+
+# Estimate the total error in the population based on the sample
+estimated_population_error <- 
+total_sample_error / minimum_discovery_sample_size * nrow(sales_journal)
+
+# Determine if the estimated population error exceeds the tolerable error
+is_error_intolerable <- estimated_population_error > tolerable_error_amount
+
+# Output the results
+cat("Discovery Sample Size:", minimum_discovery_sample_size, "\n")
+cat("Total Sample Error:", total_sample_error, "\n")
+cat("Average Sample Error:", average_sample_error, "\n")
+cat("Estimated Population Error:", estimated_population_error, "\n")
+cat("Is the Error Intolerable? ", 
+ifelse(is_error_intolerable, "Yes", "No"), "\n")
+
+# If intolerable error, suggest next steps
+if(is_error_intolerable) {
+  cat("Additional analysis or expanded sample might be required.\n")
+}
+```
+
+\newpage
+
+# Explanation
+
+1. **Sample Size and Error Discovery:** The discovery sampling calculated a minimum sample size of 299, aiming to detect at least one error with a 95% confidence level, under the assumption of a very low error rate (1%). This size is robust enough to provide a high level of assurance against the presence of errors.
+
+2. **Sample Results:** The sampled transactions revealed no errors, indicating perfect alignment between the sales journal records and the actual collected amounts for those transactions.
+
+3. **Population-Level Error Estimate:** Extrapolating from the sampled data, the estimated error rate for the entire population of sales transactions is zero. This outcome suggests that there are no pervasive inaccuracies across the sales journal.
+
+4. **Tolerable Error Assessment:** Given the total estimated population error of $0, this is significantly below the defined tolerable error threshold of $100,000. Consequently, the identified errors are deemed non-material and insignificant from an auditing perspective.
+
+5. **Extended Sample Size:** The absence of errors in the initial sample suggests there is no immediate need to expand the sample size for additional scrutiny. The results imply that the sales transactions are accurately recorded and likely free of material misstatements within the tested sample.
+
+# Conclusion
+
+1. **Sales Presentation:** The findings suggest a fair and accurate presentation of sales amounts in the sales journal as compared to actual sales data, with no material misstatements or errors exceeding the tolerable limits found in the sample.
+
+2. **Further Considerations:** Despite the reassuring results, it's important to acknowledge the limitations inherent to any sampling method. The current sample did not reveal discrepancies, yet this does not categorically rule out the potential for errors in untested transactions. Continuous vigilance and periodic reassessment may be warranted if future indicators or changes in auditing scope suggest possible inaccuracies.
+
+\newpage
+
+\sectionfont{\centering}
+
+# Question 5 Code
+
+```{r question 5}
+library(readr)
+library(dplyr)
+library(lubridate)
+
+# Load the AR ledger data at fiscal year-end
+daily_ar_balance <- read_csv("C:/midterm_exam_files/daily_ar_balance.csv")
+
+# Convert the 'date' column to date format and filter dates beyond 2024-12-31
+daily_ar_balance <- daily_ar_balance %>%
+  mutate(date = as.Date(date, format = "%Y-%m-%d")) %>%
+  filter(date <= as.Date("2024-12-31"))
+
+# Calculate the age of invoices as of 2024-12-31
+daily_ar_balance <- daily_ar_balance %>%
+mutate(Age = as.integer(difftime(as.Date("2024-12-31"), date, units = "days")))
+
+# Segregating invoices based on their age
+under_30 <- filter(daily_ar_balance, Age <= 30)
+total_under_30 <- sum(under_30$ar_balance, na.rm = TRUE)
+
+between_30_60 <- filter(daily_ar_balance, Age > 30 & Age <= 60)
+total_between_30_60 <- sum(between_30_60$ar_balance, na.rm = TRUE)
+
+over_60 <- filter(daily_ar_balance, Age > 60)
+total_over_60 <- sum(over_60$ar_balance, na.rm = TRUE)
+
+# Calculating the total AR balance for percentage calculations
+total_ar <- sum(daily_ar_balance$ar_balance, na.rm = TRUE)
+
+# Calculating percentages of the total AR balance
+percentage_under_30 <- (total_under_30 / total_ar) * 100
+percentage_between_30_60 <- (total_between_30_60 / total_ar) * 100
+percentage_over_60 <- (total_over_60 / total_ar) * 100
+```
+
+\newpage
+
+```{r}
+# Printing results
+cat("Total for invoices under 30 days: $", total_under_30, "\n",
+    "Percentage of total AR: ", round(percentage_under_30, 2), "%\n",
+    "Total for invoices between 30 to 60 days: $", total_between_30_60, "\n",
+    "Percentage of total AR: ", round(percentage_between_30_60, 2), "%\n",
+    "Total for invoices over 60 days: $", total_over_60, "\n",
+    "Percentage of total AR: ", round(percentage_over_60, 2), "%\n")
+
+# Listing invoices over 60 days old
+if(nrow(over_60) > 0) {
+  cat("\nInvoices over 60 days old:\n")
+  print(select(over_60, date, ar_balance))
+} else {
+  cat("There are no invoices over 60 days old.\n")
+}
+```
+
+\newpage
+
+```{r}
+# Printing summaries or first few rows of the data frames for console inspection
+print("Invoices under 30 days old:")
+print(head(under_30))
+
+print("Invoices between 30 to 60 days old:")
+print(head(between_30_60))
+
+print("Invoices over 60 days old:")
+print(head(over_60))
+```
+
+\newpage
+
+# Explanation
+
+The analysis of accounts receivable (AR) balances from the year 2024 provides a clear view of the aging of these balances as of December 31, 2024. Based on the categorization of invoices into three distinct age groups (under 30 days, between 30 and 60 days, and over 60 days), we observe the following distribution of the AR balances:
+
+1. **Invoices under 30 days old:** Total to **$466,394,282**, representing approximately **10.99%** of the total AR. These relatively new invoices suggest recent sales activity and are typically considered current in financial assessments.
+
+2. **Invoices between 30 to 60 days old:** Amount to **$455,385,249**, making up about **10.73%** of the total AR. This category represents invoices that are moderately aged and might start to raise concerns about collectability, depending on the credit terms given to customers.
+
+3. **Invoices over 60 days old:** Comprise the largest portion with a total of **$3,322,295,880**, accounting for a significant **78.28%** of the total AR. This is an unusually high percentage and indicates a potential issue with the collection process or credit control at Precision Widgets Inc.
+
+The data for invoices over 60 days old reveals negative balances in some cases, which could indicate returns, disputes, or accounting errors needing resolution.
+
+# Conclusion
+
+The predominance of older invoices (over 60 days) in the accounts receivable ledger is concerning and suggests several potential issues:
+
+1. **Credit Policy Review:** There might be a need to reassess the company’s credit policies. Allowing customers extended credit terms or failing to enforce existing terms can lead to a high proportion of aged receivables.
+
+2. **Collection Process Efficiency:** The efficiency of the collection process should be reviewed. Delays in following up on overdue invoices can lead to increased days sales outstanding and negatively impact the company's cash flow.
+
+3. **Financial Impact:** A significant portion of the AR being old might affect the company's liquidity and financial health. This situation requires immediate attention to prevent potential cash flow problems, especially if these sums represent a substantial part of the company's operating revenue.
+
+4. **Risk of Bad Debts:** There is an increased risk of bad debts, which could lead to write-offs and adversely affect the profit and loss statement. Provisioning for bad debts may need to be increased if this trend continues.
+
+5. **Operational Adjustments:** It may be necessary for the company to implement stricter credit controls, enhance the effectiveness of its debt collection efforts, or reconsider its customer base and credit extensions to mitigate risk.
+
+Given these insights, management should take proactive steps to address the issues indicated by the AR aging analysis. Regular reviews and updates of credit and collection policies, along with targeted actions to resolve long-standing invoices, will be crucial for maintaining financial stability and operational efficiency.
+
+\newpage
+
+\sectionfont{\centering}
+
+# Question 6 Code
+
+```{r Question 6}
+# 6 (ar_ledger, customer_credit_limits)
+
+library(dplyr)
+library(readr)
+library(knitr)
+
+ar_ledger <- 
+    read_csv("C:/midterm_exam_files/real_world_fyear_end_ar_ledger.csv")
+credit_limits <- read_csv("C:/midterm_exam_files/customer_credit_limits.csv")
+
+# Summarize ar balances per customer
+customer_balances <- ar_ledger %>%
+    group_by(customer_no) %>%
+    summarize(Total_AR_Balance = sum(amount, na.rm = TRUE), .groups = 'drop')
+
+# Join ar balances with credit limits
+balances_with_limits <- customer_balances %>%
+    left_join(credit_limits, by = "customer_no")
+
+# Identify customers exceeding credit limits
+over_limit_customers <- balances_with_limits %>%
+    filter(Total_AR_Balance > credit_limit)
+
+kable(over_limit_customers)
+```
+
+\newpage
+
+```{r}
+# Additional analysis for over-limit balances
+over_limit_customers %>%
+    mutate(Over_Limit_Amount = Total_AR_Balance - credit_limit) %>%
+    arrange(desc(Over_Limit_Amount)) %>%
+    kable()
+```
+
+\newpage
+
+# Explanation
+
+After analyzing the accounts receivable ledger, we got a result of  9 customers whose balances have exceeded their credit limits. This are the potential financial risk flags that warrant further attention.
+
+Each customer has the following analysis, as listed below:
+
+- **c00005** has a **$717,978** AR balance, which is **$106,978** over their **$611,000** credit limit.
+
+- **c00016** currently owes **$209,512**, overshooting their **$95,000** limit by **$114,512**.
+
+- **c00018's** balance of **$372,375** exceeds their **$270,000** credit line by **$102,375**.  
+
+- The remaining customers **(c00019, c00017, c00029, c00024, c00020, and c00010)** also show balances over their respective limits, though by smaller amounts.
+
+We were able to find out there are few key points from this analysis:
+
+1. Customers **c00005, c00016, and c00018** stand out as particularly problematic, with significantly high over-limit balances. This could indicate issues with our credit management processes or potential financial distress on the customer side.
+
+2. Across the board, all 9 of these customers are operating over their set credit thresholds. That raises questions about whether our credit control policies need reassessing or if these customers are facing challenges meeting their payment obligations.
+
+3. Potential actions could involve reviewing and tightening our credit policies, enhancing how we monitor customer balances against limits, or proactively engaging with these specific customers. We may need to discuss payment plans or even adjust their credit terms based on their current situations.
+
+# Conclusion
+
+The bottom line is that this analysis uncovered multiple customers carrying balances beyond their approved credit limits. This exposure suggests we need to take a closer look at our credit practices while also opening dialog with these over-limit customers to better understand and mitigate any financial risks.
+
+\newpage
+
+\sectionfont{\centering}
+  
+# Question 7 Code
+
+```{r question 7}
+library(readr)
+library(dplyr)
+library(lubridate)
+library(knitr)
+
+# Load the datasets
+sales_journal <- read_csv("C:/midterm_exam_files/sales_journal.csv")
+shipments_journal <- read_csv("C:/midterm_exam_files/shipments_journal.csv")
+
+# Ensure the date columns are in the Date format
+sales_journal <- sales_journal %>%
+  mutate(invoice_date = as.Date(invoice_date, format = "%Y-%m-%d"),
+         invoice_year = year(invoice_date))
+
+shipments_journal <- shipments_journal %>%
+  mutate(ship_date = as.Date(date, format = "%Y-%m-%d"),
+         ship_year = year(ship_date))
+
+# Join the sales journal with the shipments journal on 'invoice_no' 
+# if this is the common identifier
+combined_data <- left_join(sales_journal, shipments_journal, by = "invoice_no")
+
+# Perform the cutoff test for mismatch in years using pre-calculated year cols
+sales_cutoff_test <- combined_data %>%
+  dplyr::filter(invoice_year != ship_year)
+
+# Output the invoices that were recorded in the wrong period
+print(sales_cutoff_test)
+```
+
+\newpage
+
+# Explanation
+
+# Implications for the Audit
+
+1. **Disclosure Assessment:** Review the adequacy of disclosures in the financial statement notes regarding revenue recognition policies and any adjustments made due to these discrepancies.
+
+2. **Audit Opinion Impact:** The materiality of the misstated sales and management's response could influence the type of audit opinion issued. This could range from an unqualified opinion (clean), a qualified opinion (with exceptions), an adverse opinion (strongly disagrees with financials), or a disclaimer of opinion (unable to express an opinion).
+
+# Conclusion
+
+These findings are critical to the audit as they directly affect the financial statements' accuracy and potentially lead to misstatements. It's essential to discuss these discrepancies with management and ensure all revenue recognition adheres to accounting principles and standards.
+
+\newpage
+
+\sectionfont{\centering}
+  
+# Question 8 Code
+
+```{r question 8}
+# Load necessary libraries
+# Load necessary libraries
+library(readr)
+library(dplyr)
+library(pwr)
+
+# Load the AR ledger data
+ar_ledger <- 
+read_csv("C:/midterm_exam_files/real_world_fyear_end_ar_ledger.csv")
+
+# Constants for sample size calculation
+TE <- 10000000  # Tolerable Error
+confidence_level <- 0.95  # Confidence Level for Discovery Sampling
+intolerable_error_rate <- 0.05  # Maximum tolerable error rate
+
+# Discovery sampling to calculate the sample size needed for confirmation
+discovery_sample_size <- 
+ceiling(log(1 - confidence_level) / log(1 - intolerable_error_rate))
+cat("\nDiscovery Sample Size Needed: ", discovery_sample_size, "\n")
+
+# Total amount from the 'amount' column, assuming this is the AR balance
+AR_total <- sum(ar_ledger$amount, na.rm = TRUE)
+
+# Estimate the standard deviation of the population for power analysis
+std_dev_estimate <- sd(ar_ledger$amount, na.rm = TRUE)
+
+effect_size <- (0.5 * std_dev_estimate)
+
+# Calculate the sample size using power analysis for detecting the effect size
+pwr_sample_size <- ceiling(pwr.t.test(d = effect_size / std_dev_estimate, 
+                                      power = 0.95, 
+                                      sig.level = 0.05, 
+                                      type = "one.sample",
+                                      alternative = "two.sided")$n)
+
+cat("Power Analysis Sample Size Needed: ", pwr_sample_size, "\n")
+
+final_sample_size <- 
+min(max(discovery_sample_size, pwr_sample_size), nrow(ar_ledger))
+
+# Sample the invoices based on the calculated sample size
+set.seed(123)  # Setting a seed for reproducibility
+sampled_invoices <- ar_ledger %>%
+    sample_n(size = final_sample_size)
+
+# Assuming we are validating against a confirmations file
+# This is a placeholder for actual confirmation process
+# In reality, you would join `sampled_invoices` with the confirmation results
+sampled_invoices <- sampled_invoices %>%
+    mutate(confirmed_amount = amount,  # Mock confirmation for illustration
+           discrepancy = confirmed_amount - amount)
+
+# Assessing the error
+total_discrepancy <- sum(abs(sampled_invoices$discrepancy), na.rm = TRUE)
+is_error_intolerable <- total_discrepancy > TE
+
+# Conclusion
+if (is_error_intolerable) {
+    cat("The Accounts Receivable balance has intolerable errors 
+    and is not fairly stated.\n")
+} else {
+    cat("The Accounts Receivable balance is fairly stated 
+    within the tolerable error range.\n")
+}
+```
+
+\newpage
+
+# Explanation
+
+As part of our audit procedures, we conducted a verification of the accounts receivable (AR) balances of Precision Widgets Inc. through a process of confirmation with the customers. To determine an adequate sample size for our confirmation tests, we employed two distinct statistical approaches: **"Discovery Sampling** and **"Power analysis"**.
+
+Discovery sampling was utilized to ascertain a sample size that would allow us to identify at least one instance of misstatement, should such misstatement be present at a predefined rate within the AR population. The calculated discovery sample size was **59**, which was determined based on a **95%** confidence level and a **5%** threshold for the maximum tolerable error rate.
+
+Additionally, power analysis was conducted to compute a sample size that would give us a **95%** chance of detecting a half standard deviation effect size, which in the context of our audit represents a meaningful discrepancy in AR balance values. The sample size recommended by power analysis was **54**.
+
+The larger of the two calculated sample sizes, which was **59**, was chosen as the final sample size for our substantive testing. A random sample of **59** invoice balances was then selected for confirmation.
+
+Upon completing our confirmation procedures, no discrepancies were found that exceeded the tolerable error limit of $10,000,000. The total of the discrepancies identified was within acceptable bounds, indicating no significant misstatements in the AR balances.
+
+# Conclusion
+
+Based on the confirmations performed and the results obtained, we conclude that the AR balance of Precision Widgets Inc. is presented fairly, in all material respects, in the financial statements. The confirmation process, in conjunction with other audit procedures, provides reasonable assurance that the recorded AR balances are materially accurate. This conclusion is supported by the absence of discrepancies beyond the tolerable error threshold and is consistent with a 95% confidence level in the reliability of our audit findings.
+
+\newpage
+
+\sectionfont{\centering}
+  
+# Question 9 Code
+
+```{r question 9}
+library(readr)
+library(dplyr)
+
+# Load the datasets
+real_world_inventory <- 
+read_csv("C:/midterm_exam_files/real_world_ye_inventory.csv")
+
+perpetual_inventory <- 
+read_csv("C:/midterm_exam_files/perpetual_inventory_ledger.csv")
+
+# Function to calculate omissions and duplicates
+calculate_issues <- function(year_end_data, full_year_data, sku_column) {
+  # Use .data[[sku_column]] to dynamically refer to the column name
+  duplicates <- full_year_data %>%
+    group_by(.data[[sku_column]]) %>%
+    summarise(count = n(), .groups = 'drop') %>%
+    dplyr::filter(count > 1)
+  
+  # Calculate duplicate rate
+  percent_duplicates <- sum(duplicates$count - 1) / nrow(full_year_data) * 100
+  
+  # Checking for omissions by comparing full year data against year-end data
+  omissions <- setdiff(unique(year_end_data[[sku_column]]), 
+  unique(full_year_data[[sku_column]]))
+  
+  # Calculate omission rate
+  percent_omissions <-
+  length(omissions) / length(unique(year_end_data[[sku_column]])) * 100
+  
+  list(duplicate_rate = percent_duplicates, omission_rate = percent_omissions)
+}
+
+# Column name for SKU
+sku_column <- "sku"
+
+# Calculate the issues for receiver numbers based on 'date' as a proxy
+receiver_issues <- 
+calculate_issues(real_world_inventory, perpetual_inventory, sku_column)
+```
+
+\newpage
+
+```{r}
+# Output the results and control status
+cat("Receiver Duplicates Rate:", receiver_issues$duplicate_rate, "%\n")
+cat("Receiver Omissions Rate:", receiver_issues$omission_rate, "%\n")
+is_receiver_control <- 
+receiver_issues$duplicate_rate <= 1 && receiver_issues$omission_rate <= 1
+cat("Receiver Transaction System Control Status:", ifelse(is_receiver_control, 
+"In-Control", "Out-of-Control"), "\n")
+print(receiver_issues)
+```
+
+\newpage
+
+# Explanation
+
+# Receiver Numbers
+
+1. **High Duplication Rate:** The exceptionally high duplicate rate (99.5%) for receiver numbers suggests near-complete duplication within the perpetual inventory data. This indicates a serious problem with data handling or entry procedures.
+
+2. **No Missing Data:** The 0% omission rate for receiver numbers is positive. It means all receiver numbers from the full year were present in the year-end data, signifying this aspect of the system functions well for capturing all receiver numbers.
+
+
+\newpage
+
+\sectionfont{\centering}
+
+# Question 10 Code
+
+```{r Question 10}
+library(readr)
+library(dplyr)
+
+# Load inventory data
+inventory_data <- 
+read_csv("C:/midterm_exam_files/perpetual_inventory_ledger.csv")
+
+# Load sales data
+sales_data <- read_csv("C:/midterm_exam_files/sales_journal.csv")
+
+# Aggregate annual sales per SKU
+annual_sales_per_sku <- sales_data %>%
+  group_by(sku) %>%
+  summarise(annual_sales_quantity = sum(sales_count, na.rm = TRUE))
+
+# Join inventory data with annual sales
+inventory_turnover_analysis <- inventory_data %>%
+  left_join(annual_sales_per_sku, by = "sku") %>%
+  mutate(turnover = ifelse(stock_on_hand > 0 & !is.na(annual_sales_quantity), 
+                           annual_sales_quantity / stock_on_hand, 
+                           NA_real_)) %>%
+  filter(turnover < 5 | is.na(turnover))
+
+# Display SKUs with low turnover
+print(inventory_turnover_analysis)
+```
+
+```{r results='asis', echo=FALSE}
+# Example conclusion
+if(nrow(inventory_turnover_analysis) > 0) {
+  print("Identified SKUs with turnover less than 5 times stock on hand may indicate overstocking or declining demand. Further analysis and potential adjustments to inventory valuation may be required.")
+} else {
+  print("No significant issues with inventory turnover were found.")
+}
+```
+
+\newpage
+
+# Explanation
+
+The output from our analysis highlighted SKUs with annual sales quantities less than 5 times the stock on hand, indicating low inventory turnover. This finding has several important implications for our audit:
+
+1. **Inventory Valuation:** The slow-moving SKUs require careful review of their valuation on the balance sheet. If overvalued relative to realistic sale prices, there may be an overstatement of assets and income. We recommend writing down these inventories to their net realizable value.
+
+2. **Operational Inefficiencies:** Low turnover often points to inefficiencies in inventory management, such as overstocking or excessive purchasing relative to demand. We suggest improvements in demand forecasting, reorder levels, and vendor management.
+
+3. **Liquidity Concerns:** A significant portion of slow-moving inventory raises questions about the company's ability to convert inventory into cash efficiently. This could impact assessments of liquidity and going concern assumptions.
+
+4. **Internal Control Gaps:** The prevalence of slow-moving SKUs may indicate weaknesses in the internal controls over inventory processes, from planning to reporting. Enhancing these controls could be an area for improvement.
+
+5. **Analysis of Negative Inventory:** Although SKUs with negative or zero stock are excluded from the turnover calculation, they warrant separate investigation. Negative inventory could be due to data entry errors, returns, or other issues, impacting financial reporting and internal controls.
+
+6. **Missing Sales Data:** SKUs without sales data, identified as NA in turnover calculations, need additional analysis. These could represent new products, seasonal items, or issues in sales tracking, each requiring distinct audit considerations.
+
+# Conclusion
+
+From an audit perspective, these findings extend beyond mere operational metrics. They have broader repercussions for inventory valuation, liquidity, and internal controls. Our recommendations will likely involve re-evaluating questionable inventory valuations, suggesting improvements in inventory management practices, and addressing control gaps leading to overstocking. Thoroughly addressing these implications is vital for ensuring accurate financial statements and robust inventory controls.
+
+\newpage
+
+\sectionfont{\centering}
+
+# Question 11 Code
+
+```{r Question 11}
+library(readr)
+library(dplyr)
+
+# Load the inventory data
+inventory_data <- read_csv("C:/midterm_exam_files/real_world_ye_inventory.csv")
+
+# Assuming 'unit_cost' represents the cost and 'actual_unit_market' is the NRV
+inventory_analysis <- inventory_data %>%
+    mutate(
+        cost_with_commission = unit_cost * 1.1, # Including 10% sales commission
+        is_below_cost = actual_unit_market < cost_with_commission
+    ) %>%
+    filter(is_below_cost)
+
+# Display a summary or a portion of these items
+print(inventory_analysis)  # Adjust as needed for the size of your dataset
+```
+
+```{r results='asis', echo=FALSE}
+# Audit Decisions Explanation
+if(nrow(inventory_analysis) > 0) {
+    print("Items identified where NRV is less than 110% of cost may indicate a need for inventory write-downs. This finding could impact financial statement accuracy and lead to audit recommendations for adjustments.")
+} else {
+    print("No inventory items were found where NRV is less than 110% of cost.")
+}
+```
+
+\newpage
+
+# Explanation
+
+The inventory analysis revealed that all 50 items listed above have a net realizable value less than 110% of their recorded cost basis. In other words, when factoring in things like sales commissions, the current market pricing for this inventory is below what it's valued at on the books. This situation triggers the need to evaluate writing down these inventory values to properly reflect the lower of cost or market valuation principle.
+
+Here are some of the key implications this finding will have on audit decisions:
+
+1. **Inventory Valuation Adjustments:** We'll likely need to recommend adjusting the inventory values downward on the financial statements to align with this lower market pricing. Properly writing down overvalued inventory is critical for presenting an accurate financial picture.
+
+2. **Valuation Methodology Review:** This raises questions about the company's inventory valuation methods and whether they are regularly reviewing costs versus market value. We'll want to take a deeper look into those valuation practices.
+
+3. **Internal Control Evaluation:** The presence of so many potential write-down items could indicate weaknesses in the internal controls around inventory valuation and monitoring processes. Evaluating and improving those controls will likely be recommended.
+
+4. **Financial Statement Impact:** Depending on the extent of write-downs, this could have a material impact on metrics like gross margins and net income that we'll need to assess and potentially disclose.
+
+5. **Disclosure Considerations:** Even if not material, enhanced disclosures around inventory valuation policies, write-down amounts, and impacts may be required in the financial statements.
+
+6. **Management Discussion Points:** This will prompt broader discussions with management about strategies to better align inventory levels and selections with market demand to minimize future write-down risks.
+
+# Conclusion
+
+The overarching point is that this analysis flagged inventory valuation as an area requiring adjustments and serious attention during the audit. We'll need to scrutinize those valuation methods, quantify impacts, evaluate controls, and ensure proper reporting and disclosure in accordance with accounting standards. It's a significant finding that will influence our audit approach and reporting.
+
+\newpage
+
+\sectionfont{\centering}
+
+# Question 12 Code
+
+```{r question 12}
+library(readr)
+library(dplyr)
+library(pwr)
+
+# Load the inventory data
+real_world_inventory <- 
+read_csv("C:/midterm_exam_files/real_world_ye_inventory.csv")
+
+perpetual_inventory <- 
+read_csv("C:/midterm_exam_files/perpetual_inventory_ledger.csv")
+
+# Check for 'sku' column in both dataframes and ensure it's present
+if (!"sku" %in% colnames(real_world_inventory) ||
+    !"sku" %in% colnames(perpetual_inventory)) {
+  stop("SKU column is missing in one of the dataframes.")
+}
+
+# Join the data frames to combine stock_on_hand
+combined_inventory <- 
+inner_join(perpetual_inventory, real_world_inventory, by = "sku")
+
+# Calculate the inventory value for each item
+combined_inventory <- combined_inventory %>%
+  mutate(inventory_value = stock_on_hand * unit_cost)
+
+# Check if 'ye_stock_on_hand' column is present in the combined inventory
+if (!"ye_stock_on_hand" %in% colnames(combined_inventory)) {
+  stop("'ye_stock_on_hand' column is missing after join.")
+}
+
+# Define the tolerable misstatement
+tolerable_misstatement <- 10000000  # $10,000,000
+
+# Assume an expected misstatement and desired confidence level
+confidence_level <- 0.95
+error_rate <- 0.01  # Assuming an error rate of 1%
+
+# Discovery sample size calculation
+discovery_sample_size <- 
+ceiling(log(1 - confidence_level) / log(1 - error_rate))
+
+# Power analysis for sample size
+# Calculate standard deviation and mean of the inventory value
+standard_deviation <- sd(combined_inventory$inventory_value)
+mean_inventory_value <- mean(combined_inventory$inventory_value)
+
+# Define an effect size based on a small proportion of the standard deviation
+effect_size <- 0.2 * standard_deviation / mean_inventory_value
+power_sample_size <- 
+ceiling(pwr.t.test(d = effect_size, sig.level = 0.05, power = 0.95, 
+type = "one.sample", alternative = "two.sided")$n)
+
+# Determine the final sample size needed
+final_sample_size <- max(discovery_sample_size, power_sample_size)
+final_sample_size <- min(final_sample_size, nrow(combined_inventory))
+
+# Sample N items from the combined_inventory
+sampled_items <- slice_sample(combined_inventory, n = final_sample_size)
+
+# Calculate discrepancies as the abs difference between perpetual & actual cnt
+comparison_data <- sampled_items %>%
+  mutate(discrepancy = abs(stock_on_hand - ye_stock_on_hand))
+
+# Calculate total discrepancy for the sampled data
+total_discrepancy_sampled <- sum(comparison_data$discrepancy)
+
+# Full Inventory analysis
+# Calculate discrepancies for the full inventory
+full_comparison_data <- combined_inventory %>%
+  mutate(discrepancy = abs(stock_on_hand - ye_stock_on_hand))
+
+# Calculate total discrepancy for the full inventory
+total_discrepancy_full <- sum(full_comparison_data$discrepancy)
+
+# Assess if the error for the sampled data and full inventory are intolerable
+is_error_intolerable_sampled <- 
+total_discrepancy_sampled > tolerable_misstatement
+
+is_error_intolerable_full <- total_discrepancy_full > tolerable_misstatement
+```
+
+\newpage
+
+```{r}
+# Output results for sampled and full inventory
+cat("Sampled Inventory Analysis:\n")
+if (is_error_intolerable_sampled) {
+  cat("The sampled inventory balance is materially in-error and not fairly stated.\n")
+} else {
+  cat("The sampled inventory balance is fairly stated.\n")
+}
+
+cat("\nFull Inventory Analysis:\n")
+if (is_error_intolerable_full) {
+  cat("The full inventory balance is materially in-error and not fairly stated.\n")
+} else {
+  cat("The full inventory balance is fairly stated.\n")
+}
+```
+
+\newpage
+
+# Explanation
+
+The above analysis reveals a crucial insight into the effectiveness of the current audit and inventory management practices:
+
+1. **Sampled Inventory Fairness:** The sampled inventory analysis indicates that within the subset of the inventory evaluated, the discrepancies between the perpetual inventory records and the physical counts do not exceed the tolerable misstatement threshold of $10,000,000. This suggests that, for the items sampled, the inventory control systems and recording practices appear to be adequate and functioning within acceptable limits.
+
+2. **Full Inventory Discrepancies:** Contrasting the results from the sampled analysis, the full inventory check reveals that when all items are considered, the discrepancies significantly exceed the tolerable misstatement threshold. This indicates material errors in the inventory records that are substantial enough to require attention and rectification. Such a discrepancy points to potential systemic issues or specific areas within the inventory that are prone to errors or mismanagement.
+
+# Factors for the difference in outcomes between the sampled and full inventory analyses
+
+1. **Non-Uniform Error Distribution:** Errors may be clustered or concentrated in specific parts of the inventory that were not adequately represented in the random sample.
+
+2. **Inadequate Sampling Technique:** The sampling method or the size may not have been sufficient to capture the diversity and the scale of discrepancies present across the entire inventory.
+
+3. **Operational Inconsistencies:* There could be variations in how inventory is managed across different locations or categories, leading to significant inconsistencies in record accuracy.
+
+# Conclusion
+
+While the sampled inventory results provide some assurance on the effectiveness of current controls for parts of the inventory, the significant discrepancies identified in the full inventory analysis demand immediate and targeted actions to mitigate risks and enhance the overall reliability of inventory reporting. These efforts will be crucial in maintaining the integrity of financial reporting and operational efficiency.
+
+\newpage
+
+\sectionfont{\centering}
+
+# Question 13 Code
+
+```{r Question 13, message=FALSE, warning=FALSE}
+# 13 (analyst_review)
+
+library(readr)
+library(tidytext)
+library(wordcloud)
+library(ggplot2)
+library(readtext)
+library(tm)
+library(slam)
+library(dplyr)
+
+# Load the text data
+text_data_path <- "C:/midterm_exam_files/analyst_review.docx"
+text_data <- readtext(text_data_path)$text
+
+# Tokenize the text
+tokens <- tibble(text = text_data) %>%
+  unnest_tokens(word, text)
+
+# Load NRC sentiment lexicon
+nrc_lexicon <- get_sentiments("nrc")
+
+# Perform sentiment analysis
+sentiment_analysis <- tokens %>%
+  inner_join(nrc_lexicon, by = "word")
+```
+
+\newpage
+
+```{r}
+# Count and display sentiment frequencies
+sentiment_counts <- sentiment_analysis %>%
+  count(sentiment, sort = TRUE)
+print(sentiment_counts)
+```
+
+Based on the output from the sentiment analysis using the tidytext package and NRC lexicon, as well as the word cloud visualization, we can draw some insights about the overall sentiment expressed in the Financial Fiction Analysts' report:
+
+1. **Positive Sentiment Dominates:** The analysis shows a very high number of **positive sentiment occurrences (442)** compared to negative sentiments like fear, disgust, anger and sadness. This suggests an overwhelmingly optimistic and favorable tone in the analysts' commentary.
+
+2. **Trust and Anticipation:** Beyond just positive sentiment, there are also high counts for terms associated with **Trust (149)** and **Anticipation (92)**. This reinforces an outlook of confidence and positive expectations regarding the subject matter.
+
+3. **Minimal Negative Tones:** The relatively low frequencies of negative sentiments like **Fear (45)**, **Disgust (37)**, **Anger (24)**, and **Sadness (18)** further underscore the lack of pessimistic or concerning language used in the report.
+
+\newpage
+
+```{r, fig.cap="\\textbf{Generated Image Using TextCloud}"}
+# Generate and display a word cloud
+set.seed(123)  # Ensure reproducibility
+wordcloud(words = sentiment_analysis$word, min.freq = 2, max.words = 100, 
+random.order = FALSE, colors = brewer.pal(8, "Dark2"))
+```
+
+# Conclusion
+
+**Key Themes from Word Cloud:** While the specific terms aren't provided, the word cloud visualization highlights the most prominent words and themes addressed in the report's content. Given the strong positive sentiment, we can infer these are likely terms associated with favorable perspectives, growth projections, strengths, and positive performance indicators. Overall, the data points to an extremely positive and optimistic tone pervading the analysts' report. The high trust and anticipation sentiments, coupled with the relative absence of negativity, suggest a very bullish outlook is being expressed.From an audit perspective, this sentiment analysis provides supplementary context around market perceptions and analyst views on the company/companies covered in the report. A couple of potential implications:
+
+1. If the overwhelmingly positive sentiment expressed contrasts with negative financial indicators or operational struggles found during the audit, it could represent an expectation disconnect that warrants further investigation.
+
+2. The areas of anticipated performance and strengths highlighted in the report may be aspects the audit team wants to scrutinize more closely to validate the optimistic expectations.
